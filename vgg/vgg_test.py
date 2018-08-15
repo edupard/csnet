@@ -1,12 +1,14 @@
 import os
 # tensorflow
 import tensorflow as tf
-import urllib2
+import urllib.request
 slim = tf.contrib.slim
 #vgg stuff
 from models.research.slim.nets import vgg
-from models.research.slim.datasets import imagenet
+#from models.research.slim.datasets import imagenet
 from models.research.slim.preprocessing import vgg_preprocessing
+from matplotlib import pyplot as plt
+import numpy as np
 
 from vgg.download import check_and_download_vgg_checkpoint, checkpoint_file
 
@@ -22,8 +24,8 @@ with tf.Graph().as_default():
     url = ("https://upload.wikimedia.org/wikipedia/commons/d/d9/"
            "First_Student_IC_school_bus_202076.jpg")
 
-    # Open specified url and load image as a string
-    image_string = urllib2.urlopen(url).read()
+    with urllib.request.urlopen(url) as response:
+        image_string = response.read()
 
     # Decode string into matrix with intensity values
     image = tf.image.decode_jpeg(image_string, channels=3)
@@ -75,7 +77,34 @@ with tf.Graph().as_default():
         sorted_inds = [i[0] for i in sorted(enumerate(-probabilities),
                                             key=lambda x: x[1])]
 
+    # Show the downloaded image
+    plt.figure()
+    plt.imshow(np_image.astype(np.uint8))
+    plt.suptitle("Downloaded image", fontsize=14, fontweight='bold')
+    plt.axis('off')
+    plt.show()
 
+    # Show the image that is actually being fed to the network
+    # The image was resized while preserving aspect ratio and then
+    # cropped. After that, the mean pixel value was subtracted from
+    # each pixel of that crop. We normalize the image to be between [-1, 1]
+    # to show the image.
+    plt.imshow(network_input / (network_input.max() - network_input.min()))
+    plt.suptitle("Resized, Cropped and Mean-Centered input to the network",
+                 fontsize=14, fontweight='bold')
+    plt.axis('off')
+    plt.show()
 
+    names = imagenet.create_readable_names_for_imagenet_labels()
+    for i in range(5):
+        index = sorted_inds[i]
+        # Now we print the top-5 predictions that the network gives us with
+        # corresponding probabilities. Pay attention that the index with
+        # class names is shifted by 1 -- this is because some networks
+        # were trained on 1000 classes and others on 1001. VGG-16 was trained
+        # on 1000 classes.
+        print('Probability %0.2f => [%s]' % (probabilities[index], names[index + 1]))
+
+    res = slim.get_model_variables()
 
 
