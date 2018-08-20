@@ -1,6 +1,7 @@
 import os
 # tensorflow
 import tensorflow as tf
+from tensorflow.python import debug as tf_debug
 import urllib.request
 slim = tf.contrib.slim
 #vgg stuff
@@ -64,18 +65,26 @@ with tf.Graph().as_default():
         slim.get_model_variables('vgg_16'))
 
     with tf.Session() as sess:
+        #sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+        writer = tf.summary.FileWriter('./logs/vgg/test', sess.graph)
         # Load weights
         init_fn(sess)
 
         # We want to get predictions, image as numpy matrix
         # and resized and cropped piece that is actually
         # being fed to the network.
-        np_image, network_input, probabilities = sess.run([image,
+        #merge = tf.summary.merge_all()
+
+        hs_op = tf.get_default_graph().get_operation_by_name("vgg_16/pool5/MaxPool")
+
+        hs, np_image, network_input, probabilities = sess.run([hs_op.outputs[0], image,
                                                            processed_image,
                                                            probabilities])
         probabilities = probabilities[0, 0:]
         sorted_inds = [i[0] for i in sorted(enumerate(-probabilities),
                                             key=lambda x: x[1])]
+
+        writer.add_graph(sess.graph)
 
     # Show the downloaded image
     plt.figure()
