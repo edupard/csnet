@@ -1,3 +1,5 @@
+import time
+
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['figure.figsize'] = (10,10)
@@ -8,8 +10,6 @@ from PIL import Image
 import numpy as np
 
 import tensorflow as tf
-
-import time
 
 from tensorflow.python.keras.preprocessing import image as kp_image
 from tensorflow.python.keras import models
@@ -51,8 +51,9 @@ def load_and_process_img(path_to_img):
 def get_model():
     vgg = tf.keras.applications.vgg19.VGG19(include_top=False, weights='imagenet')
     vgg.trainable = False
-
-    model_outputs = vgg.get_layer('block5_conv2').output
+    # Get output layers corresponding to content layers
+    content_layers = ['block5_conv2']
+    model_outputs = [vgg.get_layer(name).output for name in content_layers]
     # Build model
     return models.Model(vgg.input, model_outputs)
 
@@ -60,21 +61,27 @@ def get_content_loss(base_content, target):
   return tf.reduce_mean(tf.square(base_content - target))
 
 
-def get_feature_representations(model, image):
-    features = model(image)
+def get_feature_representations(sess, model, image):
+
+    features = sess.run(model.output, {model.input: image})
+
     return features
 
-tf.enable_eager_execution()
-print("Eager execution: {}".format(tf.executing_eagerly()))
+#tf.enable_eager_execution()
+#print("Eager execution: {}".format(tf.executing_eagerly()))
 
-model = get_model()
-for layer in model.layers:
-    layer.trainable = False
 
 image = load_and_process_img("img/school_bus.jpg")
 
-start_time = time.time()
-for _ in range(1000):
-    features = get_feature_representations(model, image)
+with tf.Session() as sess:
 
-print('time: {:.4f}s'.format(time.time() - start_time))
+    model = get_model()
+    for layer in model.layers:
+        layer.trainable = False
+
+    # Get the style and content feature representations (from our specified intermediate layers)
+    start_time = time.time()
+    for _ in range(1000):
+        features = get_feature_representations(sess, model, image)
+
+    print('time: {:.4f}s'.format(time.time() - start_time))
